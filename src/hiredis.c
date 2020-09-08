@@ -13,7 +13,7 @@
  *     this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
+ *     documentation and/or other maaterials provided with the distribution.
  *   * Neither the name of Redis nor the names of its contributors may be used
  *     to endorse or promote products derived from this software without
  *     specific prior written permission.
@@ -67,7 +67,16 @@ static redisReply *createReplyObject(int type) {
         return NULL;
 
     r->type = type;
+	r->refcount = 1;
     return r;
+}
+
+void addReplyObjectRef(void *reply)
+{
+    redisReply *r = reply;
+	assert(r->refcount > 0);
+	if (r != NULL)
+		r->refcount++;
 }
 
 /* Free a reply object */
@@ -77,6 +86,11 @@ void freeReplyObject(void *reply) {
 
     if (r == NULL)
         return;
+
+	if (--r->refcount > 0)
+		return;
+
+	assert(r->refcount == 0);
 
     switch(r->type) {
     case REDIS_REPLY_INTEGER:
@@ -507,7 +521,7 @@ int redisFormatSdsCommandArgv(sds *target, int argc, const char **argv,
     cmd = sdscatfmt(cmd, "*%i\r\n", argc);
     for (j=0; j < argc; j++) {
         len = argvlen ? argvlen[j] : strlen(argv[j]);
-        cmd = sdscatfmt(cmd, "$%u\r\n", len);
+        cmd = sdscatfmt(cmd, "$%T\r\n", len);
         cmd = sdscatlen(cmd, argv[j], len);
         cmd = sdscatlen(cmd, "\r\n", sizeof("\r\n")-1);
     }
@@ -804,10 +818,15 @@ int redisBufferRead(redisContext *c) {
         if ((errno == EAGAIN && !(c->flags & REDIS_BLOCK)) || (errno == EINTR)) {
             /* Try again later */
         } else {
+            if (errno == EWOULDBLOCK && (c->flags & REDIS_BLOCK)) {
+                __redisSetError(c,REDIS_ERR_TIMEOUT,"Socket timeout");
+            } else {
             __redisSetError(c,REDIS_ERR_IO,NULL);
+            }
             return REDIS_ERR;
         }
     } else if (nread == 0) {
+        c->flags &= ~REDIS_CONNECTED;
         __redisSetError(c,REDIS_ERR_EOF,"Server closed the connection");
         return REDIS_ERR;
     } else {
@@ -822,10 +841,10 @@ int redisBufferRead(redisContext *c) {
 /* Write the output buffer to the socket.
  *
  * Returns REDIS_OK when the buffer is empty, or (a part of) the buffer was
- * successfully written to the socket. When the buffer is empty after the
+ * succesfully written to the socket. When the buffer is empty after the
  * write operation, "done" is set to 1 (if given).
  *
- * Returns REDIS_ERR if an error occurred trying to write and sets
+ * Returns REDIS_ERR if an error occured trying to write and sets
  * c->errstr to hold the appropriate error string.
  */
 int redisBufferWrite(redisContext *c, int *done) {
@@ -841,7 +860,11 @@ int redisBufferWrite(redisContext *c, int *done) {
             if ((errno == EAGAIN && !(c->flags & REDIS_BLOCK)) || (errno == EINTR)) {
                 /* Try again later */
             } else {
+                if (errno == EWOULDBLOCK && (c->flags & REDIS_BLOCK)) {
+                    __redisSetError(c,REDIS_ERR_TIMEOUT,"Socket timeout");
+                } else {
                 __redisSetError(c,REDIS_ERR_IO,NULL);
+                }
                 return REDIS_ERR;
             }
         } else if (nwritten > 0) {
@@ -984,7 +1007,7 @@ int redisAppendCommandArgv(redisContext *c, int argc, const char **argv, const s
  * context is non-blocking, the "reply" pointer will not be used and the
  * command is simply appended to the write buffer.
  *
- * Returns the reply when a reply was successfully retrieved. Returns NULL
+ * Returns the reply when a reply was succesfully retrieved. Returns NULL
  * otherwise. When NULL is returned in a blocking context, the error field
  * in the context will be set.
  */

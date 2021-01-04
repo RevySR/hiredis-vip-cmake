@@ -1461,18 +1461,20 @@ cluster_update_route_by_addr(redisClusterContext *cc,
 	}
 
 	dictReleaseIterator(dit);
+	dit = NULL; // Fix Not CLUSTER_PROXY_16383_ALL to free twice
 
 	hiarray_sort(slots, cluster_slot_start_cmp);
 	for (j = 0; j < hiarray_n(slots); j++) {
 		slot_elem = hiarray_get(slots, j);
 
 		for (k = (*slot_elem)->start; k <= (*slot_elem)->end; k++) {
+#ifndef CLUSTER_PROXY_16383_ALL
 			if (table[k] != NULL) {
 				__redisClusterSetError(cc, REDIS_ERR_OTHER,
 					"Diffent node hold a same slot");
 				goto error;
 			}
-
+#endif
 			table[k] = (*slot_elem)->node;
 		}
 	}

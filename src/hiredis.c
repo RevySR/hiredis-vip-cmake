@@ -84,11 +84,13 @@ void freeReplyObject(void *reply) {
     redisReply *r = reply;
     size_t j;
 
-    if (r == NULL)
+    if (r == NULL) {
         return;
+    }
 
-	if (--r->refcount > 0)
-		return;
+	if (--r->refcount > 0) {
+	    return;
+    }
 
 	assert(r->refcount == 0);
 

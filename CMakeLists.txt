@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.10)
 
 project(hiredis-vip-cmake)
 
@@ -6,11 +6,16 @@ enable_language(C)
 
 set(TARGET_NAME hiredis_vex)
 
-set(WARNINGS "-Wall -W -Wstrict-prototypes -Wwrite-strings -Wno-unused-function")
-
-set(CMAKE_C_FLAGS "${WARNINGS} ${CMAKE_C_FLAGS}")
+# Option
+option(CLUSTER_PROXY_16383_ALL "When Proxy return node's slot range is 0-16383" ON)
 
 set(CMAKE_C_STANDARD 99)
+
+set(WARNINGS "-Wall -Wextra -Werror -W -Wstrict-prototypes -Wwrite-strings -Wno-unused-function")
+set(CMAKE_C_FLAGS "${WARNINGS} ${CMAKE_C_FLAGS}")
+add_definitions(-DCLUSTER_PROXY_16383_ALL=${CLUSTER_PROXY_16383_ALL})
+# message(${CLUSTER_PROXY_16383_ALL})
+message("cflags: " ${CMAKE_C_FLAGS})
 
 include_directories(src)
 

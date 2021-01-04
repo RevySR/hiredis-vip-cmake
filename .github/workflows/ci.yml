@@ -1,0 +1,43 @@
+name: CI build
+
+on: 
+#  release:
+#    types: [published]
+
+ push:
+   branches:
+     - master
+     - dev/*
+
+  # schedule:
+  #   - cron: 0 11 * * *
+  
+  # watch:
+  #   types: [started]
+
+# env:
+#   REPO_URL: https://test
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization Environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install build-essential cmake
+        sudo timedatectl set-timezone "Asia/Shanghai"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+    
+    - name: Build
+      run: |
+        mkdir build && cd build
+        cmake .. && make -j4
+        
